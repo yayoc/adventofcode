@@ -1,8 +1,7 @@
 use util;
 
 fn main() {
-    let lines = util::read_lines("input.txt").expect("can't read input.txt");
-    let nums: Vec<i32> = lines.map(|l| l.unwrap().parse::<i32>().unwrap()).collect();
+    let nums: Vec<i32> = util::parse_input("input.txt").expect("can't parse input");
 
     let mut l = 0;
     let mut r = 3;

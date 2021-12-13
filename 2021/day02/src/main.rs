@@ -1,10 +1,7 @@
 use util;
 
 fn main() {
-    let lines = util::read_lines("input.txt").expect("can't read input.txt");
-    let commands: Vec<String> = lines
-        .map(|l| l.unwrap().parse::<String>().unwrap())
-        .collect();
+    let commands: Vec<String> = util::parse_input("input.txt").expect("can't parse input");
 
     let mut x = 0;
     let mut y = 0;
