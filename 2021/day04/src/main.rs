@@ -15,6 +15,7 @@ trait Bingo {
 }
 
 struct Board {
+    id: i32,
     items: Vec<Cell>,
 }
 
@@ -128,7 +129,10 @@ fn main() {
             continue;
         }
         if d == "" && tmp_cells.len() == 25 {
-            boards.push(Board { items: tmp_cells });
+            boards.push(Board {
+                id: i as i32,
+                items: tmp_cells,
+            });
             tmp_cells = Vec::new();
         } else {
             for num in d.split_whitespace() {
@@ -140,14 +144,23 @@ fn main() {
         }
     }
 
+    let board_len = boards.len();
+    let mut checked: Vec<i32> = vec![];
+
     'outer: for num in draw_nums {
         for board in boards.iter_mut() {
             board.mark(num);
-            if board.check() {
-                println!("{}", board.sum_unmarked());
-                println!("{}", num);
-                println!("{}", board.sum_unmarked() * num);
-                break 'outer;
+            let is_checked = board.check();
+            if is_checked {
+                if !checked.iter().any(|x| x == &board.id) {
+                    checked.push(board.id);
+                }
+                if checked.len() == board_len {
+                    println!("{}", board.sum_unmarked());
+                    println!("{}", num);
+                    println!("{}", board.sum_unmarked() * num);
+                    break 'outer;
+                }
             }
         }
     }
