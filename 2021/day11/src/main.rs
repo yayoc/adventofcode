@@ -103,7 +103,7 @@ fn increment(octopuses: &mut Vec<Octopus>) {
 
 fn reset(octopuses: &mut Vec<Octopus>) {
     for oct in octopuses {
-        if oct.level > 9 {
+        if oct.level > MAX_ENEGY {
             oct.reset()
         }
     }
@@ -132,9 +132,7 @@ fn main() {
         }
     }
 
-    let step = 100;
-    let mut cnt = 0;
-    for _ in 0..step {
+    for i in 0..i64::MAX {
         increment(&mut octopuses);
         let mut flashed = vec![];
         for k in 0..octopuses.len() {
@@ -150,8 +148,10 @@ fn main() {
                 );
             }
         }
-        cnt += flashed.len();
+        if flashed.len() == octopuses.len() {
+            println!("{:?}", i + 1);
+            break;
+        }
         reset(&mut octopuses);
     }
-    println!("{:?}", cnt);
 }
