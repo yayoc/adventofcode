@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+use std::hash::Hash;
 use std::fs::File;
 use std::io::{self, BufRead};
 use std::path::Path;
@@ -21,6 +23,18 @@ where
     let file = File::open(filename).expect("can't open file");
     let lines = io::BufReader::new(file).lines();
     lines.map(|l| l.unwrap().parse::<T>()).collect()
+}
+
+pub fn counter<T, I>(it: I) -> HashMap<T, usize>
+where
+    T: Eq + Hash,
+    I: Iterator<Item = T>,
+{
+    let mut count_by_element = HashMap::new();
+    for e in it {
+        *count_by_element.entry(e).or_insert(0) += 1;
+    }
+    count_by_element
 }
 
 #[cfg(test)]
