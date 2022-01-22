@@ -1,113 +1,122 @@
-use util;
+use std::cmp::Ordering;
+use std::collections::BinaryHeap;
+use std::collections::HashMap;
 
-fn parse(input: Vec<String>) -> Vec<Vec<usize>> {
+fn parse(input: Vec<String>) -> (HashMap<Pos, usize>, usize, usize) {
+    let mut levels: HashMap<Pos, usize> = HashMap::new();
     let len_y = input.len();
     let len_x = input[0].len();
 
-    let mut levels = vec![vec![0; len_x]; len_y];
-    for y in 0..input.len() {
+    for (y, _) in input.iter().enumerate() {
         let row = &input[y];
         for (x, c) in row.chars().map(|c| c.to_digit(10).unwrap()).enumerate() {
-            levels[y][x] = c as usize;
+            levels.insert(Pos { x, y }, c as usize);
         }
     }
-    levels
+    (levels, len_y, len_x)
 }
 
-#[derive(Clone, Debug, Copy)]
-struct Position {
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
+struct Pos {
     x: usize,
     y: usize,
 }
 
-impl PartialEq for Position {
-    fn eq(&self, other: &Self) -> bool {
-        self.x == other.x && self.y == other.y
+#[derive(Copy, Clone, Eq, PartialEq)]
+struct Node {
+    pos: Pos,
+    level: usize,
+}
+
+#[derive(Copy, Clone, Eq, PartialEq)]
+struct State {
+    pos: Pos,
+    total_level: usize,
+}
+
+impl Ord for State {
+    fn cmp(&self, other: &Self) -> Ordering {
+        // Notice that the we flip the ordering on costs.
+        // In case of a tie we compare positions - this step is necessary
+        // to make implementations of `PartialEq` and `Ord` consistent.
+        other.total_level.cmp(&self.total_level)
     }
 }
 
-impl Position {
-    fn has_right(&self, max: usize) -> bool {
-        self.x < max
-    }
-
-    fn right(&self) -> Position {
-        Position {
-            x: self.x + 1,
-            y: self.y,
-        }
-    }
-
-    fn has_bottom(&self, max: usize) -> bool {
-        self.y < max
-    }
-
-    fn bottom(&self) -> Position {
-        Position {
-            x: self.x,
-            y: self.y + 1,
-        }
+// `PartialOrd` needs to be implemented as well.
+impl PartialOrd for State {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
     }
 }
-
-type Path = Vec<Position>;
 
 fn main() {
     let input: Vec<String> = util::parse_input("input.txt").expect("can't parse input");
-    let levels = parse(input);
-    let len_y = levels.len();
-    let len_x = levels[0].len();
+    let (levels, len_y, len_x) = parse(input);
 
-    fn get_all_paths(
-        start: Position,
-        end: Position,
-        path: &mut Path,
-        max_x: usize,
-        max_y: usize,
-    ) -> Vec<Path> {
-        path.push(start);
-
-        if start == end {
-            println!("{:?}", path);
-            return vec![path.clone()];
-        }
-        let mut right_paths: Vec<Path> = vec![];
-        let mut bottom_paths: Vec<Path> = vec![];
-
-        let mut original_path: Path = vec![start];
-        if start.has_right(max_x) {
-            right_paths = get_all_paths(start.right(), end, path, max_x, max_y)
-                .iter_mut()
-                .map(|path| {
-                    original_path.append(path);
-                    return original_path.clone();
-                })
-                .collect();
-        }
-        if start.has_bottom(max_y) {
-            bottom_paths = get_all_paths(start.bottom(), end, path, max_x, max_y)
-                .iter_mut()
-                .map(|path| {
-                    original_path.append(path);
-                    return original_path.clone();
-                })
-                .collect();
-        }
-
-        right_paths.append(&mut bottom_paths);
-        return right_paths;
-    }
-
-    let start = Position { x: 0, y: 0 };
-    let end = Position {
+    let start = Pos { x: 0, y: 0 };
+    let end = Pos {
         x: len_x - 1,
         y: len_y - 1,
     };
 
-    let mut path = vec![];
-    let paths = get_all_paths(start, end, &mut path, len_x - 1, len_y - 1);
+    // Dijkstra's shortest path algorithm.
 
-    for path in paths {
-        // println!("{:?}", path);
+    let mut queue: BinaryHeap<State> = BinaryHeap::new();
+    let mut dist: HashMap<Pos, usize> = HashMap::new();
+    for pos in levels.keys() {
+        dist.insert(*pos, usize::MAX);
+    }
+
+    queue.push(State {
+        pos: start,
+        total_level: 0,
+    });
+
+    while let Some(State { pos, total_level }) = queue.pop() {
+        if pos == end {
+            println!("lowest level {:?}", total_level);
+        }
+
+        if total_level > *dist.get(&pos).unwrap() {
+            continue;
+        }
+
+        let adj_positions = vec![
+            Pos {
+                x: pos.x,
+                y: pos.y - 1,
+            },
+            Pos {
+                x: pos.x + 1,
+                y: pos.y,
+            },
+            Pos {
+                x: pos.x,
+                y: pos.y + 1,
+            },
+            Pos {
+                x: pos.x - 1,
+                y: pos.y,
+            },
+        ];
+
+        let positions: Vec<&Pos> = adj_positions
+            .iter()
+            .filter(|p| p.x >= 0 && p.x < len_x && p.y >= 0 && p.y < len_y)
+            .collect();
+
+        for pos in positions {
+            let next_node_level = levels.get(pos).unwrap();
+            let next = State {
+                total_level: total_level + next_node_level,
+                pos: *pos,
+            };
+
+            if next.total_level < *dist.get(pos).unwrap() {
+                queue.push(next);
+                dist.insert(next.pos, next.total_level);
+            }
+        }
     }
 }
