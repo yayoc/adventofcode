@@ -10,10 +10,22 @@ fn parse(input: Vec<String>) -> (HashMap<Pos, usize>, usize, usize) {
     for (y, _) in input.iter().enumerate() {
         let row = &input[y];
         for (x, c) in row.chars().map(|c| c.to_digit(10).unwrap()).enumerate() {
-            levels.insert(Pos { x, y }, c as usize);
+            for i_x in 0..5 {
+                for i_y in 0..5 {
+                    let new_x = x + (i_x * len_x);
+                    let new_y = y + (i_y * len_y);
+                    let mut new_level = c as usize + i_x + i_y as usize;
+                    if new_level > 9 {
+                        new_level -= 9;
+                    }
+
+                    levels.insert(Pos { x: new_x, y: new_y }, new_level);
+                }
+            }
         }
     }
-    (levels, len_y, len_x)
+
+    (levels, len_y * 5, len_x * 5)
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
