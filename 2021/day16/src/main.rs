@@ -1,33 +1,17 @@
-fn hex_to_binary(s: char) -> &'static str {
-    match s {
-        '0' => "0000",
-        '1' => "0001",
-        '2' => "0010",
-        '3' => "0011",
-        '4' => "0100",
-        '5' => "0101",
-        '6' => "0110",
-        '7' => "0111",
-        '8' => "1000",
-        '9' => "1001",
-        'A' => "1010",
-        'B' => "1011",
-        'C' => "1100",
-        'D' => "1101",
-        'E' => "1110",
-        'F' => "1111",
-        _ => "",
+fn num(decoded: &[char], start: usize, len: usize) -> usize {
+    let mut str = String::from("");
+    for i in start..start + len {
+        str.push(decoded[i]);
     }
+    usize::from_str_radix(&str, 2).unwrap()
 }
 
 pub fn parse(i: &mut usize, decoded: &[char]) -> usize {
     if decoded.len() < 6 {
         return 0;
     }
-    let version_id_binary = format!("{}{}{}", decoded[0], decoded[1], decoded[2]);
-    let version_id = usize::from_str_radix(&version_id_binary, 2).unwrap();
-    let type_id_binary = format!("{}{}{}", decoded[3], decoded[4], decoded[5]);
-    let type_id = usize::from_str_radix(&type_id_binary, 2).unwrap();
+    let version_id = num(decoded, 0, 3);
+    let type_id = num(decoded, 3, 3);
 
     // literal
     if type_id == 4 {
@@ -44,19 +28,23 @@ pub fn parse(i: &mut usize, decoded: &[char]) -> usize {
             *i += 1;
         }
         let remain = decoded.get(6 + *i..).unwrap();
-        return version_id + parse(i, remain);
+        return version_id + parse(&mut 0, remain);
     }
 
     // operator
-    /*
-    let length_type_id_char = chars_vec[6];
-    if length_type_id_char == '1' {
-        let num_binary: String = chars_vec.get(7..18).unwrap().iter().collect();
+    let length_type_id_char = decoded[*i + 6];
+    if length_type_id_char == '0' {
+        let num_binary: String = decoded.get(*i + 7..*i + 22).unwrap().iter().collect();
         let num = usize::from_str_radix(&num_binary, 2).unwrap();
-        let chunks = chars_vec.get(19..).unwrap().to_vec().chunks(11);
-        let chunks_vec: Vec<Vec<char>> = chunks.collect();
+        let sub = decoded.get(*i + 22..*i + 22 + num).unwrap();
+        return version_id + parse(&mut 0, sub);
+    } else if length_type_id_char == '1' {
+        let num_binary: String = decoded.get(*i + 7..*i + 18).unwrap().iter().collect();
+        let num_sub = usize::from_str_radix(&num_binary, 2).unwrap();
+        let remain = decoded.get(*i + 18..*i + 18 + num_sub * 11).unwrap();
+        return version_id + parse(&mut 0, remain);
     }
-    */
+
     0
 }
 
@@ -85,12 +73,14 @@ fn main() {
 mod tests {
     #[test]
     fn example1() {
-        assert_eq!(super::solve("D2FE28"), 6);
+        //assert_eq!(super::solve("D2FE28"), 6);
+        //assert_eq!(super::solve("38006F45291200"), 9);
+        assert_eq!(super::solve("EE00D40C823060"), 14);
+        //assert_eq!(super::solve("8A004A801A8002F478"), 16);
         /*
-        assert_eq!(super::parse("8A004A801A8002F478"), 16);
-        assert_eq!(super::parse("620080001611562C8802118E34"), 12);
-        assert_eq!(super::parse("C0015000016115A2E0802F182340"), 23);
-        assert_eq!(super::parse("A0016C880162017C3686B18A3D4780"), 31);
+        assert_eq!(super::solve("620080001611562C8802118E34"), 12);
+        assert_eq!(super::solve("C0015000016115A2E0802F182340"), 23);
+        assert_eq!(super::solve("A0016C880162017C3686B18A3D4780"), 31);
         */
     }
 }
