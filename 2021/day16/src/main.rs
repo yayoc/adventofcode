@@ -20,56 +20,35 @@ fn hex_to_binary(s: char) -> &'static str {
     }
 }
 
-fn get_version(bits: &str) -> usize {
-    let chars_vec: Vec<char> = bits.chars().collect();
-    let version_id_binary = format!("{}{}{}", chars_vec[0], chars_vec[1], chars_vec[2]);
-    usize::from_str_radix(&version_id_binary, 2).unwrap()
-}
-
-fn get_sub_packets(bits: &str) -> Vec<String> {
-    let chars_vec: Vec<char> = bits.chars().collect();
-    let type_id_binary = format!("{}{}{}", chars_vec[3], chars_vec[4], chars_vec[5]);
-    let type_id = usize::from_str_radix(&type_id_binary, 2).unwrap();
-
-    if type_id == 4 {
-        return chars_vec
-            .get(6..)
-            .unwrap()
-            .iter()
-            .map(|x| x.to_string())
-            .collect();
+pub fn parse(i: &mut usize, decoded: &[char]) -> usize {
+    if decoded.len() < 6 {
+        return 0;
     }
-
-    let length_type_id_char = chars_vec[6];
-    if length_type_id_char == '1' {
-        let num_binary: String = chars_vec.get(7..18).unwrap().iter().collect();
-        let num = usize::from_str_radix(&num_binary, 2).unwrap();
-
-        let remain = chars_vec.get(19).unwrap();
-    }
-
-    // If the length type ID is 0, then the next 15 bits are a number that represents the total length in bits of the sub-packets contained by this packet.
-    let num_binary: String = chars_vec.get(7..22).unwrap().iter().collect();
-    let num = usize::from_str_radix(&num_binary, 2).unwrap();
-
-    vec![]
-}
-
-fn parse(bits: &str) -> usize {
-    let chars_vec: Vec<char> = bits.chars().collect();
-
-    let version_id_binary = format!("{}{}{}", chars_vec[0], chars_vec[1], chars_vec[2]);
+    let version_id_binary = format!("{}{}{}", decoded[0], decoded[1], decoded[2]);
     let version_id = usize::from_str_radix(&version_id_binary, 2).unwrap();
-    let type_id_binary = format!("{}{}{}", chars_vec[3], chars_vec[4], chars_vec[5]);
+    let type_id_binary = format!("{}{}{}", decoded[3], decoded[4], decoded[5]);
     let type_id = usize::from_str_radix(&type_id_binary, 2).unwrap();
 
     // literal
     if type_id == 4 {
-        let remain: String = chars_vec.get(6..).unwrap().iter().collect();
-        return version_id + parse(&remain);
+        let remain = decoded.get(*i + 6..).unwrap();
+        let mut is_last = false;
+        // consume literal packets
+        while i < &mut remain.len() {
+            if *i % 5 == 0 && is_last {
+                break;
+            }
+            if *i % 5 == 0 && *remain.get(*i).unwrap() == '0' {
+                is_last = true;
+            }
+            *i += 1;
+        }
+        let remain = decoded.get(6 + *i..).unwrap();
+        return version_id + parse(i, remain);
     }
 
     // operator
+    /*
     let length_type_id_char = chars_vec[6];
     if length_type_id_char == '1' {
         let num_binary: String = chars_vec.get(7..18).unwrap().iter().collect();
@@ -77,11 +56,41 @@ fn parse(bits: &str) -> usize {
         let chunks = chars_vec.get(19..).unwrap().to_vec().chunks(11);
         let chunks_vec: Vec<Vec<char>> = chunks.collect();
     }
+    */
     0
+}
+
+pub fn solve(input: &str) -> usize {
+    let mut decoded = String::new();
+    for c in input.trim().chars() {
+        // hex to binary
+        decoded += &format!("{:04b}", c.to_digit(16).unwrap());
+    }
+    let decoded: Vec<char> = decoded.chars().collect();
+    let mut i = 0;
+    let mut version_sum: usize = 0;
+    while i < input.len() {
+        version_sum += parse(&mut i, &decoded);
+    }
+    version_sum
 }
 
 fn main() {
     let input: Vec<String> = util::parse_input("input.txt").expect("can't parse input");
-    let ans = parse(&input[0]);
+    let ans = solve(&input[0]);
     println!("{}", ans);
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn example1() {
+        assert_eq!(super::solve("D2FE28"), 6);
+        /*
+        assert_eq!(super::parse("8A004A801A8002F478"), 16);
+        assert_eq!(super::parse("620080001611562C8802118E34"), 12);
+        assert_eq!(super::parse("C0015000016115A2E0802F182340"), 23);
+        assert_eq!(super::parse("A0016C880162017C3686B18A3D4780"), 31);
+        */
+    }
 }
