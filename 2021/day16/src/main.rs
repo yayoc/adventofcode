@@ -11,6 +11,7 @@ fn read(decoded: &[char], i: &mut usize, len: usize) -> usize {
 pub struct Packet {
     version: usize,
     type_id: usize,
+    represent: usize,
     sub: Vec<Packet>,
 }
 
@@ -39,10 +40,20 @@ pub fn parse(decoded: &[char]) -> Option<(Packet, usize)> {
             k += 1;
         }
         pos += k;
+
+        let represent: String = remain
+            .get(..k)
+            .unwrap()
+            .chunks(5)
+            .filter(|x| x.len() == 5)
+            .flat_map(|x| &x[1..])
+            .collect();
+
         return Some((
             Packet {
                 version,
                 type_id,
+                represent: usize::from_str_radix(represent.as_str(), 2).unwrap(),
                 sub: vec![],
             },
             pos,
@@ -55,8 +66,9 @@ pub fn parse(decoded: &[char]) -> Option<(Packet, usize)> {
     if length_type_id_char == '0' {
         let k = read(decoded, &mut pos, 15);
         let mut sub = vec![];
+        let max_pos = k + pos;
         while pos < k + pos {
-            if let Some((packet, p)) = parse(&decoded[pos..]) {
+            if let Some((packet, p)) = parse(&decoded[pos..max_pos]) {
                 sub.push(packet);
                 pos += p;
             } else {
@@ -68,13 +80,13 @@ pub fn parse(decoded: &[char]) -> Option<(Packet, usize)> {
             Packet {
                 version,
                 type_id,
+                represent: 0,
                 sub,
             },
             pos,
         ));
     }
     let num_sub = read(decoded, &mut pos, 11);
-    println!("num_sub: {}", num_sub);
     let mut sub = vec![];
     for _ in 0..num_sub {
         if let Some((packet, p)) = parse(&decoded[pos..]) {
@@ -87,6 +99,7 @@ pub fn parse(decoded: &[char]) -> Option<(Packet, usize)> {
         Packet {
             version,
             type_id,
+            represent: 0,
             sub,
         },
         pos,
@@ -109,6 +122,38 @@ fn sum_version(packet: Packet) -> usize {
     res
 }
 
+fn calc(packet: &Packet) -> usize {
+    match packet.type_id {
+        0 => packet.sub.iter().map(calc).sum(),
+        1 => packet.sub.iter().map(calc).product(),
+        2 => packet.sub.iter().map(calc).min().unwrap_or(0),
+        3 => packet.sub.iter().map(calc).max().unwrap_or(0),
+        4 => packet.represent,
+        5 => {
+            if calc(&packet.sub[0]) > calc(&packet.sub[1]) {
+                1
+            } else {
+                0
+            }
+        }
+        6 => {
+            if calc(&packet.sub[0]) < calc(&packet.sub[1]) {
+                1
+            } else {
+                0
+            }
+        }
+        7 => {
+            if calc(&packet.sub[0]) == calc(&packet.sub[1]) {
+                1
+            } else {
+                0
+            }
+        }
+        _ => unreachable!(),
+    }
+}
+
 pub fn solve(input: &str) -> usize {
     let mut decoded = String::new();
     for c in input.trim().chars() {
@@ -123,18 +168,31 @@ pub fn solve(input: &str) -> usize {
     }
 }
 
-pub fn solve2(input: &str) -> usize {}
+pub fn solve2(input: &str) -> usize {
+    let mut decoded = String::new();
+    for c in input.trim().chars() {
+        // hex to binary
+        decoded += &format!("{:04b}", c.to_digit(16).unwrap());
+    }
+    let decoded: Vec<char> = decoded.chars().collect();
+    if let Some((packet, _)) = parse(&decoded) {
+        println!("packet: {:?}", packet);
+        calc(&packet)
+    } else {
+        0
+    }
+}
 
 fn main() {
     let input: Vec<String> = util::parse_input("input.txt").expect("can't parse input");
-    let ans = solve(&input[0]);
+    let ans = solve2(&input[0]);
     println!("{}", ans);
 }
 
 #[cfg(test)]
 mod tests {
     #[test]
-    fn example1() {
+    fn part1() {
         assert_eq!(super::solve("D2FE28"), 6);
         assert_eq!(super::solve("38006F45291200"), 9);
         assert_eq!(super::solve("EE00D40C823060"), 14);
@@ -144,5 +202,15 @@ mod tests {
         assert_eq!(super::solve("A0016C880162017C3686B18A3D4780"), 31);
     }
 
-    fn example2() {}
+    #[test]
+    fn part2() {
+        assert_eq!(super::solve2("C200B40A82"), 3);
+        assert_eq!(super::solve2("04005AC33890"), 54);
+        assert_eq!(super::solve2("880086C3E88112"), 7);
+        assert_eq!(super::solve2("CE00C43D881120"), 9);
+        assert_eq!(super::solve2("D8005AC2A8F0"), 1);
+        assert_eq!(super::solve2("F600BC2D8F"), 0);
+        assert_eq!(super::solve2("9C005AC2F8F0"), 0);
+        assert_eq!(super::solve2("9C0141080250320F1802104A08"), 1);
+    }
 }
