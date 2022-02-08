@@ -1,5 +1,7 @@
 use std::{collections::HashMap, fs};
 
+use util::counter;
+
 type Path<'a> = Vec<&'a str>;
 
 fn is_lowercase(s: &str) -> bool {
@@ -18,29 +20,59 @@ fn get_graph(input: &str) -> HashMap<&str, Vec<&str>> {
     graph
 }
 
+fn has_twice(counter: &HashMap<&str, usize>) -> bool {
+    let mut res = false;
+    for (&key, &count) in counter.iter() {
+        if is_lowercase(key) && count == 2 {
+            res = true;
+            break;
+        }
+    }
+    res
+}
+
 fn count_paths<'a>(
     graph: HashMap<&str, Path<'a>>,
     start: &'a str,
     end: &'a str,
     visited: &mut Vec<&'a str>,
     count: &mut usize,
+    part_two: bool,
 ) {
     visited.push(start);
+    println!("visited: {:?}", visited);
 
     if start == end {
         *count += 1;
     } else {
         for adj in graph.get(start).unwrap() {
             if is_lowercase(adj) {
-                if !visited.contains(adj) {
-                    count_paths(graph.clone(), adj, end, visited, count);
+                if !part_two {
+                    // part one
+                    if !visited.contains(adj) {
+                        count_paths(graph.clone(), adj, end, visited, count, part_two);
+                    }
+                } else {
+                    // part two
+                    let counter = util::counter(visited.iter().cloned());
+                    match counter.get(adj) {
+                        Some(v) => {
+                            if *v == 1 && *adj != "start" && *adj != "end" {
+                                let has_twice = has_twice(&counter);
+                                if !has_twice {
+                                    count_paths(graph.clone(), adj, end, visited, count, part_two);
+                                }
+                            }
+                        }
+                        None => count_paths(graph.clone(), adj, end, visited, count, part_two),
+                    }
                 }
             } else {
-                count_paths(graph.clone(), adj, end, visited, count);
+                count_paths(graph.clone(), adj, end, visited, count, part_two);
             }
         }
     }
-    visited.retain(|x| *x != start);
+    visited.truncate(visited.len() - 1);
 }
 
 fn main() {
@@ -48,7 +80,7 @@ fn main() {
     let graph: HashMap<&str, Vec<&str>> = get_graph(content.as_str());
     let mut visited = vec![];
     let mut count = 0;
-    count_paths(graph, "start", "end", &mut visited, &mut count);
+    count_paths(graph, "start", "end", &mut visited, &mut count, true);
     println!("{}", count);
 }
 
@@ -56,7 +88,15 @@ pub fn solve1(input: &str) -> usize {
     let graph: HashMap<&str, Vec<&str>> = get_graph(input);
     let mut visited = vec![];
     let mut count = 0;
-    count_paths(graph, "start", "end", &mut visited, &mut count);
+    count_paths(graph, "start", "end", &mut visited, &mut count, false);
+    count
+}
+
+pub fn solve2(input: &str) -> usize {
+    let graph: HashMap<&str, Vec<&str>> = get_graph(input);
+    let mut visited = vec![];
+    let mut count = 0;
+    count_paths(graph, "start", "end", &mut visited, &mut count, true);
     count
 }
 
@@ -104,5 +144,51 @@ zg-he
 pj-fs
 start-RW";
         assert_eq!(super::solve1(test3), 226);
+    }
+
+    #[test]
+    fn part2() {
+        let test1 = "start-A
+start-b
+A-c
+A-b
+b-d
+A-end
+b-end";
+        assert_eq!(super::solve2(test1), 36);
+
+        let test2 = "dc-end
+        HN-start
+        start-kj
+        dc-start
+        dc-HN
+        LN-dc
+        HN-end
+        kj-sa
+        kj-HN
+        kj-dc";
+        assert_eq!(super::solve2(test2), 103);
+        /*
+
+        let test3 = "fs-end
+        he-DX
+        fs-he
+        start-DX
+        pj-DX
+        end-zg
+        zg-sl
+        zg-pj
+        pj-he
+        RW-he
+        fs-DX
+        pj-RW
+        zg-RW
+        start-pj
+        he-WI
+        zg-he
+        pj-fs
+        start-RW";
+        assert_eq!(super::solve2(test3), 3509);
+        */
     }
 }
